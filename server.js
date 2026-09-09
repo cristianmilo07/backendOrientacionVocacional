@@ -4,6 +4,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
 const User = require('./models/User');
+const SurveyResponse = require('./models/Response');
 const authMiddleware = require('./middleware/auth');
 
 const app = express();
@@ -136,6 +137,69 @@ app.get('/api/students', authMiddleware, async (req, res) => {
     })));
   } catch (error) {
     console.error('Error obteniendo estudiantes:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/responses', authMiddleware, async (req, res) => {
+  try {
+    const { answers } = req.body || {};
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ message: 'Respuestas inválidas' });
+    }
+
+    const response = await SurveyResponse.create({
+      userId: req.user.id,
+      username: req.user.username,
+      answers
+    });
+
+    return res.status(201).json({ message: 'Respuesta guardada', response });
+  } catch (error) {
+    console.error('Error guardando respuesta:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.get('/api/responses', authMiddleware, async (req, res) => {
+  try {
+    const responses = await SurveyResponse.find().sort({ submittedAt: -1 });
+    res.json(responses.map(r => ({
+      _id: r._id,
+      userId: r.userId,
+      username: r.username,
+      answersCount: r.answers.length,
+      submittedAt: r.submittedAt,
+      createdAt: r.createdAt
+    })));
+  } catch (error) {
+    console.error('Error obteniendo respuestas:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.get('/api/responses/:id', authMiddleware, async (req, res) => {
+  try {
+    const response = await SurveyResponse.findById(req.params.id);
+    if (!response) {
+      return res.status(404).json({ message: 'Respuesta no encontrada' });
+    }
+    res.json(response);
+  } catch (error) {
+    console.error('Error obteniendo detalle de respuesta:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/responses/:id', authMiddleware, async (req, res) => {
+  try {
+    const response = await SurveyResponse.findByIdAndDelete(req.params.id);
+    if (!response) {
+      return res.status(404).json({ message: 'Respuesta no encontrada' });
+    }
+    res.json({ message: 'Respuesta eliminada' });
+  } catch (error) {
+    console.error('Error eliminando respuesta:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
