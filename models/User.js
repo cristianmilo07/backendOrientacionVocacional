@@ -22,6 +22,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['student', 'admin'],
     default: 'student'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastLogin: {
+    type: Date
+  },
+  currentToken: {
+    type: String
+  },
+  activeAt: {
+    type: Date
   }
 }, {
   timestamps: true

@@ -4,6 +4,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
 const User = require('./models/User');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
 app.use(cors());
@@ -31,8 +32,30 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
+    if (user.currentToken) {
+      return res.status(409).json({
+        message: 'Esta cuenta ya tiene una sesión activa',
+        activeSession: true,
+        user: {
+          username: user.username,
+          name: user.name,
+          lastLogin: user.lastLogin
+        }
+      });
+    }
+
+    const token = generateToken(user);
+
+    user.currentToken = token;
+    user.isActive = true;
+    user.activeAt = new Date();
+    user.lastLogin = new Date();
+    await user.save();
+
+    console.log('Login OK:', user.username, 'currentToken:', user.currentToken ? 'SI' : 'NO');
+
     return res.json({
-      token: generateToken(user),
+      token,
       user: {
         username: user.username,
         role: user.role,
@@ -45,14 +68,71 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/students', async (req, res) => {
+app.post('/api/auth/force-login', async (req, res) => {
   try {
-    const students = await User.find({ role: 'student' }).select('username name role');
+    const { username } = req.body || {};
+
+    if (!username) {
+      return res.status(400).json({ message: 'Usuario requerido' });
+    }
+
+    const user = await User.findOne({ username: username.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (!user.currentToken) {
+      return res.status(409).json({
+        message: 'No hay sesión activa para este usuario',
+        activeSession: false
+      });
+    }
+
+    const token = generateToken(user);
+
+    user.currentToken = token;
+    user.isActive = true;
+    user.activeAt = new Date();
+    user.lastLogin = new Date();
+    await user.save();
+
+    console.log('Force-login OK:', user.username, 'currentToken:', user.currentToken ? 'SI' : 'NO');
+
+    return res.json({
+      token,
+      user: {
+        username: user.username,
+        role: user.role,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Error en force-login:', error);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, { isActive: false, currentToken: null });
+    return res.json({ message: 'Sesión cerrada correctamente' });
+  } catch (error) {
+    console.error('Error en logout:', error);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.get('/api/students', authMiddleware, async (req, res) => {
+  try {
+    const students = await User.find({ role: 'student' }).select('username name role isActive lastLogin');
     res.json(students.map(s => ({
       id: s._id,
       username: s.username,
       name: s.name,
-      role: s.role
+      role: s.role,
+      isActive: s.isActive,
+      lastLogin: s.lastLogin
     })));
   } catch (error) {
     console.error('Error obteniendo estudiantes:', error);
