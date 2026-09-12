@@ -62,11 +62,11 @@ const seedDB = async () => {
       });
     }
 
-    const adminExists = await User.findOne({ username: 'admin' });
+    const adminExists = await User.findOne({ username: 'carolina.admin' });
     if (!adminExists) {
       await User.create({
-        username: 'admin',
-        password: 'admin123',
+        username: 'carolina.admin',
+        password: 'Carod10s.',
         name: 'Administrador',
         role: 'admin'
       });
