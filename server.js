@@ -169,6 +169,7 @@ app.get('/api/responses', authMiddleware, async (req, res) => {
       userId: r.userId,
       username: r.username,
       answersCount: r.answers.length,
+      reflection: r.reflection || [],
       submittedAt: r.submittedAt,
       createdAt: r.createdAt
     })));
@@ -190,16 +191,40 @@ app.get('/api/responses/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
-
 app.delete('/api/responses/:id', authMiddleware, async (req, res) => {
   try {
     const response = await SurveyResponse.findByIdAndDelete(req.params.id);
     if (!response) {
       return res.status(404).json({ message: 'Respuesta no encontrada' });
     }
+
     res.json({ message: 'Respuesta eliminada' });
   } catch (error) {
     console.error('Error eliminando respuesta:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.patch('/api/responses/:id/reflection', authMiddleware, async (req, res) => {
+  try {
+    console.log('PATCH reflection id:', req.params.id, 'body keys:', Object.keys(req.body || {}));
+    const response = await SurveyResponse.findById(req.params.id);
+    if (!response) {
+      return res.status(404).json({ message: 'Respuesta no encontrada' });
+    }
+
+    const { reflection } = req.body || {};
+    if (!Array.isArray(reflection)) {
+      return res.status(400).json({ message: 'Reflexión inválida' });
+    }
+
+    response.reflection = reflection;
+    const saved = await response.save();
+    console.log('Reflexión guardada para', saved._id, 'items:', saved.reflection.length);
+
+    res.json({ message: 'Reflexión guardada', response: saved });
+  } catch (error) {
+    console.error('Error guardando reflexión:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
