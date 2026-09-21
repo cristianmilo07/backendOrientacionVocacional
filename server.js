@@ -246,6 +246,34 @@ app.delete('/api/responses/:id', authMiddleware, async (req, res) => {
   }
 });
 
+app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const { name, password } = req.body || {};
+    if (name !== undefined) user.name = name.trim();
+    if (password !== undefined && password.trim()) user.password = password.trim();
+
+    await user.save();
+
+    res.json({
+      message: 'Usuario actualizado correctamente',
+      user: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 app.patch('/api/responses/:id/reflection', authMiddleware, async (req, res) => {
   try {
     console.log('PATCH reflection id:', req.params.id, 'body keys:', Object.keys(req.body || {}));

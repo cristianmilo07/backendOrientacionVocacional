@@ -64,12 +64,21 @@ const seedDB = async () => {
 
     const adminExists = await User.findOne({ username: 'carolina.admin' });
     if (!adminExists) {
-      await User.create({
-        username: 'carolina.admin',
-        password: 'Carod10s.',
-        name: 'Administrador',
-        role: 'admin'
-      });
+      const oldAdmin = await User.findOne({ username: 'admin' });
+      if (oldAdmin) {
+        oldAdmin.username = 'carolina.admin';
+        oldAdmin.password = 'Carod10s.';
+        oldAdmin.name = 'Administrador';
+        oldAdmin.role = 'admin';
+        await oldAdmin.save();
+      } else {
+        await User.create({
+          username: 'carolina.admin',
+          password: 'Carod10s.',
+          name: 'Administrador',
+          role: 'admin'
+        });
+      }
     }
 
     console.log(`Base de datos poblada con ${students.length} estudiantes y 1 admin.`);
@@ -77,7 +86,7 @@ const seedDB = async () => {
     for (const student of students) {
       console.log(`  - ${student.username} / ${password} (${student.name})`);
     }
-    console.log('  - admin / admin123 (Administrador)');
+    console.log('  - carolina.admin / Carod10s. (Administrador)');
     process.exit(0);
   } catch (error) {
     console.error('Error poblando la base de datos:', error);
