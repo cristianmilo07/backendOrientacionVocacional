@@ -274,6 +274,22 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+app.post('/api/users/:id/logout', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    await User.findByIdAndUpdate(req.params.id, { isActive: false, currentToken: null });
+
+    res.json({ message: `Sesión cerrada para ${user.username}` });
+  } catch (error) {
+    console.error('Error cerrando sesión de usuario:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 app.patch('/api/responses/:id/reflection', authMiddleware, async (req, res) => {
   try {
     console.log('PATCH reflection id:', req.params.id, 'body keys:', Object.keys(req.body || {}));
