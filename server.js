@@ -5,7 +5,8 @@ const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
 const User = require('./models/User');
 const SurveyResponse = require('./models/Response');
-const authMiddleware = require('./middleware/auth');
+const authMiddleware = require('./middleware/auth').authMiddleware;
+const adminOnly = require('./middleware/auth').adminOnly;
 
 const app = express();
 app.use(cors());
@@ -137,6 +138,46 @@ app.get('/api/students', authMiddleware, async (req, res) => {
     })));
   } catch (error) {
     console.error('Error obteniendo estudiantes:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { firstName, lastName } = req.body || {};
+    if (!firstName || !lastName) {
+      return res.status(400).json({ message: 'Nombre y apellido son requeridos' });
+    }
+
+    const normalize = (text) =>
+      text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '.');
+
+    const username = `${normalize(firstName)}.${normalize(lastName)}`;
+    const password = username;
+
+    const existing = await User.findOne({ username });
+    if (existing) {
+      return res.status(409).json({ message: 'El usuario ya existe' });
+    }
+
+    const user = await User.create({ username, password, name: `${firstName} ${lastName}`, role: 'student' });
+
+    res.status(201).json({
+      message: 'Usuario creado correctamente',
+      user: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error creando usuario:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
