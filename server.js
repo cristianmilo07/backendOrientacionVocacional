@@ -144,7 +144,16 @@ app.get('/api/students', authMiddleware, async (req, res) => {
 
 app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { firstName, lastName } = req.body || {};
+    const body = req.body || {};
+    console.log('POST /api/users body keys:', Object.keys(body));
+    console.log('POST /api/users body:', JSON.stringify(body));
+
+    const firstName = body.firstName;
+    const lastName = body.lastName;
+    const password = body.password;
+
+    console.log('firstName:', firstName, 'lastName:', lastName, 'password present:', !!password);
+
     if (!firstName || !lastName) {
       return res.status(400).json({ message: 'Nombre y apellido son requeridos' });
     }
@@ -158,14 +167,18 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
         .replace(/\s+/g, '.');
 
     const username = `${normalize(firstName)}.${normalize(lastName)}`;
-    const password = username;
+    const finalPassword = password && String(password).trim() ? String(password).trim() : username;
+
+    console.log('username:', username, 'finalPassword present:', !!finalPassword);
 
     const existing = await User.findOne({ username });
+    console.log('existing user:', existing ? existing.username : null);
     if (existing) {
       return res.status(409).json({ message: 'El usuario ya existe' });
     }
 
-    const user = await User.create({ username, password, name: `${firstName} ${lastName}`, role: 'student' });
+    const user = await User.create({ username, password: finalPassword, name: `${firstName} ${lastName}`, role: 'student' });
+    console.log('created user:', user._id, user.username);
 
     res.status(201).json({
       message: 'Usuario creado correctamente',
